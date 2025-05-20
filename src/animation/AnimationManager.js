@@ -251,7 +251,7 @@ AnimationManager.prototype = {
 			this.setReceiveShadowFloor();
 
 			this.updateMatrixWorld();
-			tb.map.repaint = true;
+			// tb.map.repaint = true;
 
 			//const threeTarget = new THREE.EventDispatcher();
 			//threeTarget.dispatchEvent({ type: 'event', detail: { object: this, action: { position: options.position, rotation: options.rotation, scale: options.scale } } });
@@ -343,7 +343,7 @@ AnimationManager.prototype = {
 				// Update the animation mixer and render this frame
 				obj.mixer.update(0.01);
 			}
-			tb.map.repaint = true;
+			// tb.map.repaint = true;
 			return this;
 		}
 
