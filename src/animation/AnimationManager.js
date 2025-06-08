@@ -458,7 +458,7 @@ AnimationManager.prototype = {
 						object.isPlaying = true;
 						object.animationMethod = requestAnimationFrame(this.update);
 						object.mixer.update(object.clock.getDelta());
-						tb.map.repaint = true;
+						// tb.map.repaint = true;
 					}
 
 				}
