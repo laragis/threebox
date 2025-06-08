@@ -283,7 +283,7 @@ AnimationManager.prototype = {
 				this.animationQueue
 					.push(entry);
 
-				tb.map.repaint = true
+				// tb.map.repaint = true
 				return this;
 			}
 		}
