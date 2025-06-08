@@ -133,7 +133,7 @@ AnimationManager.prototype = {
 				this.animationQueue
 					.push(entry);
 
-				tb.map.repaint = true;
+				// tb.map.repaint = true;
 			}
 
 			//if no duration set, stop object's existing animations and go to that state immediately
@@ -183,7 +183,7 @@ AnimationManager.prototype = {
 			this.animationQueue
 				.push(entry);
 
-			tb.map.repaint = true;
+			// tb.map.repaint = true;
 
 			return this;
 		};
