@@ -1,3 +1,25 @@
+## 2.2.8 (Upcoming)
+
+Minor version by [@jscastro76](https://github.com/jscastro76), new persistent cache feature.
+
+#### :sparkles: New Features
+- **Persistent Cache Storage**: Implemented Cache API-based caching system for 3D objects across browser sessions
+  - Uses modern Cache API (CacheStorage) for robust, standards-compliant caching
+  - Similar to Mapbox's tile caching mechanism, but for 3D models
+  - Automatic cache management with configurable entry limits and expiration
+  - Significant performance improvements for applications with repeated model loads
+  - Requires HTTPS or localhost (Cache API security requirement)
+  - Graceful fallback to memory-only caching if Cache API is not available
+  - New cache management methods: `getCacheStats()`, `clearCache()`
+  - Configurable options: `maxCacheEntries`, `maxCacheAge`
+
+#### :book: Documentation  
+- Added comprehensive [Persistent Cache documentation](/docs/PERSISTENT_CACHE.md)
+- New example: [22-caching.html](/examples/22-caching.html)
+- Updated [Threebox documentation](/docs/Threebox.md) with cache configuration options
+
+- - - 
+
 ## 2.2.7
 
 Minor version by [@jscastro76](https://github.com/jscastro76), some enhancements and bugs. 
@@ -380,7 +402,7 @@ Minor version by [@jscastro76](https://github.com/jscastro76), some enhancements
 - [**#95**](https://github.com/jscastro76/threebox/issues/95) `tb.add` should admit layer and source as optional params 
 - [**#96**](https://github.com/jscastro76/threebox/issues/96) `tb.setLayerHeigthProperty` depends on an internal feature on `obj.userData.feature` 
 - [**#98**](https://github.com/jscastro76/threebox/issues/98) Add an init param for multiLayer scenarios, that allows to create a default empty layer in threebox 
-- [**#99**](https://github.com/jscastro76/threebox/issues/99) `setLayoutZoomRange` doesn’t work on multilayer scenarios 
+- [**#99**](https://github.com/jscastro76/threebox/issues/99) `setLayoutZoomRange` doesnï¿½t work on multilayer scenarios 
 - [**#101**](https://github.com/jscastro76/threebox/issues/101) `options.adjustment` must be on top of `options.anchor` not instead 
 
 #### :beetle: Bug fixes
@@ -516,7 +538,7 @@ Minor version by [@jscastro76](https://github.com/jscastro76), some enhancements
   - Improved Eiffel example with real sun light slider and shadows on 3D models and Buildings extrusions [Statue of Liberty and Eiffel Tower with Shadows](https://github.com/jscastro76/threebox/blob/master/examples/eiffel.html)
 - `tb.Constants` are now accessible through instance (usefull for HTML/js side calculations)
 - [**#31**](https://github.com/jscastro76/threebox/issues/31) Create/Remove the shadow plane automatically on `obj.castShadow`
-- [**#33**](https://github.com/jscastro76/threebox/issues/33) Refactored methods `òbj.add` and `obj.remove` to enable add an object to them (honestly this never worked as it was referring to root which is the function.)
+- [**#33**](https://github.com/jscastro76/threebox/issues/33) Refactored methods `ï¿½bj.add` and `obj.remove` to enable add an object to them (honestly this never worked as it was referring to root which is the function.)
 - [**#34**](https://github.com/jscastro76/threebox/issues/34) Added shadows for fill extrusion layers
   - Synced with Custom Layers `tb.setSunLight` through `tb.setBuildingShadows(options)`
   - Added new example on fill-extrusion shadows.

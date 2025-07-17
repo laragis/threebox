@@ -1,4 +1,3 @@
-
 /**
  * @author peterqliu / https://github.com/peterqliu
  * @author jscastro / https://github.com/jscastro76
@@ -21,7 +20,6 @@ const line = require("./objects/line.js");
 const tube = require("./objects/tube.js");
 const LabelRenderer = require("./objects/LabelRenderer.js");
 const BuildingShadows = require("./objects/effects/BuildingShadows.js");
-const CacheManager = require("./cache/CacheManager.js");
 
 function Threebox(map, glContext, options){
 
@@ -74,15 +72,6 @@ Threebox.prototype = {
 		this.world = new THREE.Group();
 		this.world.name = "world";
 		this.scene.add(this.world);
-
-		/** @nhan.tt */
-		// Initialize persistent cache manager
-		const cacheOptions = this.options.cache || {};
-		this.cacheManager = new CacheManager({
-			cacheName: cacheOptions.cacheName || 'threebox-cache',
-			maxAge: cacheOptions.maxAge || this.options.maxCacheAge || 7 * 24 * 60 * 60 * 1000, // 7 days default
-			maxCacheEntries: cacheOptions.maxCacheEntries || this.options.maxCacheEntries || 100 // Max number of cached items
-		});
 
 		this.objectsCache = new Map();
 		this.zoomLayers = [];
@@ -716,473 +705,44 @@ Threebox.prototype = {
 		return Object3D(options)
 	},
 
-	
-	/** @nhan.tt */
-	_createBlobUrlFromResponse: async function(response) {
-		const arrayBuffer = await response.clone().arrayBuffer();
-		const blob = new Blob([arrayBuffer]);
-		return URL.createObjectURL(blob);
-	},
-
-	/** @nhan.tt */
-	_loadWithBlobUrl: function(options, cb, resolve, blobUrl) {
-		return new Promise((resolveLoader) => {
-			loader(options, (obj) => {
-				// Clean up the blob URL after loading
-				URL.revokeObjectURL(blobUrl);
-				if (cb) cb(obj);
-			}, (obj) => {
-				// Clean up the blob URL after loading
-				URL.revokeObjectURL(blobUrl);
-				resolve(obj);
-			});
-		});
-	},
-
-	/** @nhan.tt */
-	_loadWithFallback: function(options, cb, resolve) {
-		return new Promise((resolveLoader) => {
-			loader(options, (obj) => {
-				if (cb) cb(obj);
-			}, (obj) => {
-				resolve(obj);
-			});
-		});
-	},
-
-	/** @nhan.tt */
-	_loadNonCached: function(options, cb) {
-		return new Promise(async (resolve) => {
-			loader(options, cb, async (obj) => {
-				resolve(obj);
-			});
-		});
-	},
-
-	/** @nhan.tt */
-	_cacheResponse: async function(cachedResponse, options, cb, resolve) {
-		// Create a blob URL from cached data for the loader
-		const blobUrl = await this._createBlobUrlFromResponse(cachedResponse);
-
-		// Use the blob URL with the loader
-		const modifiedOptions = { ...options, obj: blobUrl };
-		return this._loadWithBlobUrl(modifiedOptions, cb, resolve, blobUrl);
-	},
-
-	/** @nhan.tt */
 	loadObj: async function loadObj(options, cb) {
 		this.setDefaultView(options, this.options);
 		if (options.clone === false) {
-			return this._loadNonCached(options, cb);
+			return new Promise(
+				async (resolve) => {
+					loader(options, cb, async (obj) => {
+						resolve(obj);
+					});
+				});
 		}
 		else {
-			return new Promise(async (resolve, reject) => {
-				try {
-					// Check if the obj is a URL (for Mapbox-style caching)
-					const urlPrefix = ["http://", "https://", "./", "/"];
-					const isUrl = typeof options.obj === 'string' && urlPrefix.some(prefix => options.obj.startsWith(prefix));
-
-					if (isUrl) {
-						// Use Mapbox-style URL caching for remote/local files
-						try {
-							let cachedResponse = await this.cacheManager.getFromUrl(options.obj);
-							
-							if (cachedResponse) {
-								// console.log(`Cache HIT for model: ${options.obj}`);
-								// Restore object from cache
-								return this._cacheResponse(cachedResponse, options, cb, resolve);
-							} else {
-								const response = await this.cacheManager.cacheFileFromUrl(options.obj);
-								
-								if (response) {
-									// console.log(`Cache MISS for model: ${options.obj}`);
-									// Cache the file first, then use the cached response
-									return this._cacheResponse(response, options, cb, resolve);
+			//[jscastro] new added cache for 3D Objects
+			let cache = this.objectsCache.get(options.obj);
+			if (cache) {
+				cache.promise
+					.then(obj => {
+						cb(obj.duplicate(options));
+					})
+					.catch(err => {
+						this.objectsCache.delete(options.obj);
+						console.error("Could not load model file: " + options.obj);
+					});
+			} else {
+				this.objectsCache.set(options.obj, {
+					promise: new Promise(
+						async (resolve, reject) => {
+							loader(options, cb, async (obj) => {
+								if (obj.duplicate) {
+									resolve(obj.duplicate());
 								} else {
-									// If caching failed, fall back to normal loading
-									return this._loadWithFallback(options, cb, resolve);
+									reject(obj);
 								}
-							}
-						} catch (error) {
-							console.warn('Error with Mapbox-style caching, falling back to traditional loading:', error);
-							return this._loadWithFallback(options, cb, resolve);
-						}
-					}
-
-					// // Fallback to traditional caching for non-URL objects or if Mapbox-style caching fails
-					// // Generate cache key from URL and relevant options
-					// const cacheKey = this.cacheManager.generateKey(options.obj, {
-					// 	type: options.type,
-					// 	scale: options.scale,
-					// 	units: options.units
-					// });
-
-					// // First check persistent cache
-					// try {
-					// 	const cachedData = await this.cacheManager.get(cacheKey);
-					// 	if (cachedData) {
-					// 		// Restore object from cache
-					// 		const cachedObj = this.restoreObjectFromCache(cachedData, options);
-					// 		if (cachedObj) {
-					// 			const duplicatedObj = cachedObj.duplicate ? cachedObj.duplicate(options) : cachedObj;
-					// 			if (cb) cb(duplicatedObj);
-					// 			resolve(duplicatedObj);
-					// 			return;
-					// 		}
-					// 	}
-					// } catch (error) {
-					// 	console.warn('Error accessing persistent cache:', error);
-					// }
-
-					// // Check in-memory cache as fallback
-					// let cache = this.objectsCache.get(options.obj);
-					// if (cache) {
-					// 	cache.promise
-					// 		.then(async obj => {
-					// 			// Store in persistent cache for future use
-					// 			try {
-					// 				const cacheData = this.prepareObjectForCache(obj);
-					// 				await this.cacheManager.set(cacheKey, cacheData, {
-					// 					url: options.obj,
-					// 					timestamp: Date.now(),
-					// 					type: options.type || 'model'
-					// 				});
-					// 			} catch (error) {
-					// 				console.warn('Error storing object in persistent cache:', error);
-					// 			}
-								
-					// 			const duplicatedObj = obj.duplicate(options);
-					// 			if (cb) cb(duplicatedObj);
-					// 			resolve(duplicatedObj);
-					// 		})
-					// 		.catch(err => {
-					// 			this.objectsCache.delete(options.obj);
-					// 			console.error("Could not load model file: " + options.obj);
-					// 			reject(err);
-					// 		});
-					// } else {
-					// 	this.objectsCache.set(options.obj, {
-					// 		promise: new Promise(
-					// 			async (resolveLoader, rejectLoader) => {
-					// 				loader(options, (obj) => {
-					// 					// Callback function - handle user callback here
-					// 					if (obj && obj.duplicate && cb) {
-					// 						cb(obj.duplicate(options));
-					// 					}
-					// 				}, async (obj) => {
-					// 					// Promise function - handle promise resolution here
-					// 					if (obj && obj.duplicate) {
-					// 						// Store in persistent cache
-					// 						try {
-					// 							const cacheData = this.prepareObjectForCache(obj);
-					// 							await this.cacheManager.set(cacheKey, cacheData, {
-					// 								url: options.obj,
-					// 								timestamp: Date.now(),
-					// 								type: options.type || 'model'
-					// 							});
-					// 						} catch (error) {
-					// 							console.warn('Error storing object in persistent cache:', error);
-					// 						}
-											
-					// 						resolveLoader(obj);
-					// 						resolve(obj.duplicate(options));
-					// 					} else if (typeof obj === 'string') {
-					// 						// Error case
-					// 						const error = new Error(obj);
-					// 						rejectLoader(error);
-					// 						reject(error);
-					// 					} else {
-					// 						// Unknown case
-					// 						const error = new Error('Failed to load object');
-					// 						rejectLoader(error);
-					// 						reject(error);
-					// 					}
-					// 				});
-					// 			})
-					// 	});
-					// }
-				} catch (error) {
-					console.error('Error in loadObj:', error);
-					reject(error);
-				}
-			});
-		}
-	},
-
-	/** @nhan.tt */
-	loadFile: async function(url, options = {}) {
-		if (!this.cacheManager) {
-			throw new Error('Cache manager not initialized');
-		}
-
-		try {
-			return await this.cacheManager.loadFile(url, options);
-		} catch (error) {
-			console.error('Failed to load file with caching:', error);
-			throw error;
-		}
-	},
-
-	/** @nhan.tt */
-	cacheFile: async function(url, options = {}) {
-		if (!this.cacheManager) {
-			throw new Error('Cache manager not initialized');
-		}
-
-		try {
-			return await this.cacheManager.cacheFileFromUrl(url, options);
-		} catch (error) {
-			console.error('Failed to cache file:', error);
-			throw error;
-		}
-	},
-
-	/** @nhan.tt */
-	getCachedFile: async function(url) {
-		if (!this.cacheManager) {
-			return null;
-		}
-
-		try {
-			return await this.cacheManager.getFromUrl(url);
-		} catch (error) {
-			console.error('Failed to get cached file:', error);
-			return null;
-		}
-	},
-
-	/** @nhan.tt */
-	prepareObjectForCache: function(obj) {
-		try {
-			// Extract cacheable data from the object
-			const cacheData = {
-				type: 'ThreeboxObject',
-				geometry: this.serializeGeometry(obj.geometry),
-				material: this.serializeMaterial(obj.material),
-				position: obj.position.toArray(),
-				rotation: obj.rotation.toArray(),
-				scale: obj.scale.toArray(),
-				userData: obj.userData,
-				name: obj.name,
-				uuid: obj.uuid,
-				timestamp: Date.now()
-			};
-
-			// Handle children if they exist
-			if (obj.children && obj.children.length > 0) {
-				cacheData.children = obj.children.map(child => this.prepareObjectForCache(child));
-			}
-
-			return cacheData;
-		} catch (error) {
-			console.warn('Error preparing object for cache:', error);
-			return null;
-		}
-	},
-
-	/** @nhan.tt */
-	restoreObjectFromCache: function(cacheData, options) {
-		try {
-			if (!cacheData || cacheData.type !== 'ThreeboxObject') {
-				return null;
-			}
-
-			// Create a new object from cached data
-			const geometry = this.deserializeGeometry(cacheData.geometry);
-			const material = this.deserializeMaterial(cacheData.material);
-			
-			const obj = new THREE.Mesh(geometry, material);
-			
-			// Restore properties
-			obj.position.fromArray(cacheData.position);
-			obj.rotation.fromArray(cacheData.rotation);
-			obj.scale.fromArray(cacheData.scale);
-			obj.userData = cacheData.userData || {};
-			obj.name = cacheData.name || '';
-			
-			// Add essential Threebox methods
-			obj.duplicate = function(opts = {}) {
-				const duplicated = obj.clone();
-				duplicated.userData = { ...obj.userData, ...opts };
-				
-				// Ensure the cloned object also has Threebox methods
-				duplicated.setCoords = obj.setCoords;
-				duplicated.getCoords = obj.getCoords;
-				duplicated.duplicate = obj.duplicate;
-				
-				return duplicated;
-			};
-
-			// Add essential Threebox coordinate methods
-			obj.setCoords = function(coords) {
-				if (this.userData && this.userData.feature) {
-					this.userData.feature.geometry.coordinates = coords;
-				}
-				// Convert coordinates to world position
-				const worldCoords = utils.projectToWorld(coords);
-				this.position.set(worldCoords[0], worldCoords[1], worldCoords[2] || 0);
-			};
-
-			obj.getCoords = function() {
-				// Convert world position back to coordinates
-				return utils.unprojectFromWorld(this.position);
-			};
-
-			// Restore children if they exist
-			if (cacheData.children) {
-				cacheData.children.forEach(childData => {
-					const child = this.restoreObjectFromCache(childData, options);
-					if (child) {
-						obj.add(child);
-					}
+							});
+						})
 				});
-			}
 
-			return obj;
-		} catch (error) {
-			console.warn('Error restoring object from cache:', error);
-			return null;
+			}
 		}
-	},
-
-	/** @nhan.tt */
-	serializeGeometry: function(geometry) {
-		if (!geometry) return null;
-		
-		try {
-			return {
-				type: geometry.type,
-				attributes: {
-					position: geometry.attributes.position ? geometry.attributes.position.array : null,
-					normal: geometry.attributes.normal ? geometry.attributes.normal.array : null,
-					uv: geometry.attributes.uv ? geometry.attributes.uv.array : null
-				},
-				index: geometry.index ? geometry.index.array : null,
-				boundingBox: geometry.boundingBox,
-				boundingSphere: geometry.boundingSphere
-			};
-		} catch (error) {
-			console.warn('Error serializing geometry:', error);
-			return null;
-		}
-	},
-
-	/** @nhan.tt */
-	deserializeGeometry: function(geometryData) {
-		if (!geometryData) return new THREE.BufferGeometry();
-		
-		try {
-			const geometry = new THREE.BufferGeometry();
-			
-			if (geometryData.attributes.position) {
-				geometry.setAttribute('position', new THREE.Float32BufferAttribute(geometryData.attributes.position, 3));
-			}
-			if (geometryData.attributes.normal) {
-				geometry.setAttribute('normal', new THREE.Float32BufferAttribute(geometryData.attributes.normal, 3));
-			}
-			if (geometryData.attributes.uv) {
-				geometry.setAttribute('uv', new THREE.Float32BufferAttribute(geometryData.attributes.uv, 2));
-			}
-			if (geometryData.index) {
-				geometry.setIndex(new THREE.Uint16BufferAttribute(geometryData.index, 1));
-			}
-			
-			return geometry;
-		} catch (error) {
-			console.warn('Error deserializing geometry:', error);
-			return new THREE.BufferGeometry();
-		}
-	},
-
-	/** @nhan.tt */
-	serializeMaterial: function(material) {
-		if (!material) return null;
-		
-		try {
-			const materialData = {
-				type: material.type,
-				color: material.color ? material.color.getHex() : null,
-				opacity: material.opacity,
-				transparent: material.transparent,
-				side: material.side
-			};
-
-			// Handle textures (store only the image URL for now)
-			if (material.map && material.map.image && material.map.image.src) {
-				materialData.mapSrc = material.map.image.src;
-			}
-
-			return materialData;
-		} catch (error) {
-			console.warn('Error serializing material:', error);
-			return null;
-		}
-	},
-
-	/** @nhan.tt */
-	deserializeMaterial: function(materialData) {
-		if (!materialData) return new THREE.MeshBasicMaterial();
-		
-		try {
-			let material;
-			
-			switch (materialData.type) {
-				case 'MeshBasicMaterial':
-					material = new THREE.MeshBasicMaterial();
-					break;
-				case 'MeshLambertMaterial':
-					material = new THREE.MeshLambertMaterial();
-					break;
-				case 'MeshPhongMaterial':
-					material = new THREE.MeshPhongMaterial();
-					break;
-				default:
-					material = new THREE.MeshBasicMaterial();
-			}
-			
-			if (materialData.color !== null) {
-				material.color.setHex(materialData.color);
-			}
-			material.opacity = materialData.opacity || 1.0;
-			material.transparent = materialData.transparent || false;
-			material.side = materialData.side || THREE.FrontSide;
-
-			// Restore texture if available
-			if (materialData.mapSrc) {
-				const textureLoader = new THREE.TextureLoader();
-				material.map = textureLoader.load(materialData.mapSrc);
-			}
-
-			return material;
-		} catch (error) {
-			console.warn('Error deserializing material:', error);
-			return new THREE.MeshBasicMaterial();
-		}
-	},
-
-	/** @nhan.tt */
-	clearCache: async function() {
-		// Clear memory cache
-		this.objectsCache.clear();
-		
-		// Clear persistent cache
-		if (this.cacheManager) {
-			await this.cacheManager.clear();
-		}
-	},
-
-	/** @nhan.tt */
-	getCacheStats: async function() {
-		const stats = {
-			memoryCache: this.objectsCache.size,
-			persistent: null
-		};
-		
-		if (this.cacheManager) {
-			stats.persistent = await this.cacheManager.getStats();
-		}
-		
-		return stats;
 	},
 
 	// Material
@@ -1528,34 +1088,23 @@ Threebox.prototype = {
 		}
 	},
 
-	/** @nhan.tt */
 	//[jscastro] method to fully dispose the resources, watch out is you call this without navigating to other page
 	dispose: async function () {
 
-		// console.log(this.memory());
-		// console.log(window.performance.memory);
+		console.log(this.memory());
+		//console.log(window.performance.memory);
 
 		return new Promise((resolve) => {
 			resolve(
-				this.clear(null, true).then(async (resolve) => {
+				this.clear(null, true).then((resolve) => {
 					this.map.remove();
 					this.map = {};
 					this.scene.remove(this.world);
 					this.world.children = [];
 					this.world = null;
 					this.objectsCache.clear();
-					
-					// Clear persistent cache
-					if (this.cacheManager) {
-						try {
-							await this.cacheManager.clear();
-						} catch (error) {
-							console.warn('Error clearing persistent cache during dispose:', error);
-						}
-					}
-					
 					this.labelRenderer.dispose();
-					// console.log(this.memory());
+					console.log(this.memory());
 					this.renderer.dispose();
 					return resolve;
 				})
@@ -1629,7 +1178,6 @@ Threebox.prototype = {
 
 }
 
-/** @nhan.tt */
 var defaultOptions = {
 	defaultLights: false,
 	realSunlight: false,
@@ -1646,9 +1194,7 @@ var defaultOptions = {
 	orthographic: false,
 	fov: ThreeboxConstants.FOV_DEGREES,
 	sky: false,
-	terrain: false,
-	maxCacheEntries: 100, // Max number of cached items
-	maxCacheAge: 7 * 24 * 60 * 60 * 1000 // 7 days default cache age
+	terrain: false
 }
 module.exports = exports = Threebox;
 

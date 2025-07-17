@@ -174,6 +174,47 @@ To run them, create a `config.js` file with your Mapbox-gl-js access token, alon
 
 - - -
 
+## Mapbox-Style Persistent Caching
+
+Threebox now includes a persistent cache storage system that works exactly like Mapbox's tile caching mechanism, using the browser's native **CacheStorage API**.
+
+### How it works
+- 3D model files (`.glb`, `.obj`, `.mtl`, etc.) are cached by their **actual URL** 
+- Uses the same HTTP Request/Response pattern as Mapbox tile caching
+- Automatically handles cache expiration and cleanup
+- Requires **HTTPS** or **localhost** (CacheStorage API requirement)
+
+### Configuration
+```javascript
+const tb = new Threebox(map, gl, {
+    cache: {
+        enabled: true,
+        cacheName: 'threebox-cache',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        maxCacheEntries: 100
+    }
+});
+```
+
+### Cache Inspection
+You can inspect the cache structure in Chrome DevTools > Application > Storage > Cache Storage, where you'll see entries like:
+```
+threebox-cache/
+  ├── https://example.com/models/soldier.glb
+  ├── https://example.com/models/truck.obj
+  └── ./models/local-model.glb
+```
+
+This is identical to how Mapbox stores map tiles, making it familiar and consistent for developers.
+
+### Examples
+- **[Basic Mapbox-Style Cache Demo](examples/26-mapbox-cache-example.html)** - Shows cache HIT/MISS behavior
+- **[Cache Debug Tool](examples/25-loadobj-debug.html)** - Detailed cache inspection and debugging
+
+<br>
+
+- - -
+
 ## Contributing
 - Clone the [Github repo](https://github.com/jscastro76/threebox/).
 - Build the library with `npm run build` to get the minimized version, or `npm run dev` to get the development version and rebuild continuously as you develop. 
