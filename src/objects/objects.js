@@ -8,8 +8,12 @@ const THREE = require('../three.js');
 const AnimationManager = require("../animation/AnimationManager.js");
 const CSS2D = require("./CSS2DRenderer.js");
 
-function Objects(){
-
+/** @nhan.tt */
+function Objects(map){
+	this.map = map;
+	this.animationManager = new AnimationManager(map);
+	// Store a reference to the AnimationManager on the prototype for backward compatibility
+	Objects.prototype.animationManager = this.animationManager;
 }
 
 Objects.prototype = {
@@ -956,8 +960,6 @@ Objects.prototype = {
 
 		return geoGroup
 	},
-
-	animationManager: new AnimationManager,
 
 	//[jscastro] add tooltip method 
 	drawTooltip : function (tooltipText, mapboxStyle = false) {
