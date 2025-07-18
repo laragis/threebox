@@ -13,6 +13,7 @@ function Objects(map){
 	this.map = map;
 	this.animationManager = new AnimationManager(map);
 	// Store a reference to the AnimationManager on the prototype for backward compatibility
+	Objects.prototype.map = this.map;
 	Objects.prototype.animationManager = this.animationManager;
 }
 
