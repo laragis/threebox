@@ -18342,7 +18342,7 @@ Objects.prototype = {
 				model.position.add(point); // re-add the offset
 				model.rotateOnAxis(axis, theta)
 
-				tb.map.repaint = true;
+				this.map.repaint = true;
 			}
 
 
@@ -18985,7 +18985,7 @@ Objects.prototype = {
 			})
 
 			obj.scaleGroup.remove(o);
-			tb.map.repaint = true;
+			this.map.repaint = true;
 		}
 
 		//[jscastro] clone + assigning all the attributes
