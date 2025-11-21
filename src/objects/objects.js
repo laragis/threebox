@@ -7,6 +7,7 @@ const material = require("../utils/material.js");
 const THREE = require('../three.js');
 const AnimationManager = require("../animation/AnimationManager.js");
 const CSS2D = require("./CSS2DRenderer.js");
+const SkeletonUtils = require("../utils/SkeletonUtils.js");
 
 /** @nhan.tt */
 function Objects(map){
@@ -829,7 +830,9 @@ Objects.prototype = {
 		//[jscastro] clone + assigning all the attributes
 		obj.duplicate = function (options) {
 
-			let dupe = obj.clone(true);	//clone the whole threebox object
+			/** @nhan.tt */
+			// let dupe = obj.clone(true);	//clone the whole threebox object
+			let dupe = SkeletonUtils.clone(obj);
 			dupe.getObjectByName("model").animations = obj.animations; //we must set this explicitly before addMethods
 			if (dupe.userData.feature) {
 				if (options && options.feature) dupe.userData.feature = options.feature;
