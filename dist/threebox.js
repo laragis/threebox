@@ -19165,7 +19165,11 @@ Objects.prototype = {
 		if (typeof (HTMLElement) == 'string') {
 			div.innerHTML = HTMLElement;
 		} else {
-			div.innerHTML = HTMLElement.outerHTML;
+			/** @nhan.tt */
+			// Do NOT use outerHTML as it serializes to string and loses React event handlers
+			// Instead, directly append the DOM element to preserve React's event delegation
+			// div.innerHTML = HTMLElement.outerHTML;
+			div.appendChild(HTMLElement);
 		}
 		return div;
 	},
